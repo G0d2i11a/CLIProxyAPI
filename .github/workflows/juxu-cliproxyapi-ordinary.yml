@@ -1,0 +1,49 @@
+name: Juxu CLIProxyAPI ordinary checks
+on:
+  push:
+    branches: [ci/juxu-cliproxyapi-ordinary-20261121]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify CLIProxyAPI translator and server build
+    if: >-
+      github.repository_id == '1302482433' &&
+      github.repository == 'G0d2i11a/CLIProxyAPI' &&
+      github.ref == 'refs/heads/ci/juxu-cliproxyapi-ordinary-20261121' &&
+      github.actor_id == '130071715' &&
+      github.triggering_actor == 'G0d2i11a'
+    runs-on: juxu-cliproxyapi-linux-amd64-v1
+    timeout-minutes: 45
+    steps:
+      - name: Verify ordinary Linux guest
+        shell: bash
+        env:
+          GUEST_ENVIRONMENT: ${{ runner.environment }}
+        run: |
+          set -euo pipefail
+          [[ "$GUEST_ENVIRONMENT" == self-hosted && "$RUNNER_OS" == Linux && "$RUNNER_ARCH" == X64 ]]
+          [[ "$RUNNER_NAME" =~ ^juxu-cliproxyapi-[a-f0-9]{16}$ ]]
+          [[ "$(uname -sm)" == "Linux x86_64" && "$(id -u)" != 0 ]]
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Verify CLIProxyAPI translator and server build
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]]
+          go test -mod=readonly -count=1 -v ./internal/translator/common
+          go build -mod=readonly -o "$RUNNER_TEMP/cli-proxy-api" ./cmd/server
+          test -s "$RUNNER_TEMP/cli-proxy-api"
